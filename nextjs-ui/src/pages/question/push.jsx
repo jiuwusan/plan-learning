@@ -1,7 +1,10 @@
 import { MDEditor } from '@/component'
+import styles from './push.module.css'
+
 const Page = (props) => {
-    return <div>
-        <MDEditor/>
+    return <div className={styles['question-push']}>
+        <MDEditor />
+        <MDEditor />
     </div>
 }
 

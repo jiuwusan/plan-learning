@@ -1,0 +1,19 @@
+.markdownEditor {
+    width: 400px;
+    height: 600px;
+}
+
+.markdownEditorTools {
+    width: 100%;
+}
+
+.markdownEditorToolitem {
+    width: 18px;
+    height: 18px;
+    padding: 2px;
+}
+
+.markdownEditorToolitem img {
+    width: 100%;
+    height: 100%;
+}
