@@ -1,79 +1,81 @@
-import React, { useContext, useRef } from 'react'
-import styles from './form.module.css'
+import { cloneElement, PureComponent, forwardRef, useImperativeHandle } from 'react'
+import FieldContext, { useForm, debounce } from './hooks'
 
-// 数据上下文
-const FieldContext = React.createContext();
+/**
+ * 定义 From , 使用 forwardRef 传递 useImperativeHandle 自定义 Ref
+ */
+export const Form = forwardRef(({ children, form, onSubmit: formSubmit }, ref) => {
 
-// 保存 数据
-class formStore {
-    constructor() {
-        this.store = {};
-        this.entities = [];
-        this.callbacks = {};
-    }
-    // 获取每一个得value值
-    getFieldValue = (name) => {
-        return this.store[name] || '';
-    };
+    const [formInstance] = useForm(form);
 
-    setFieldValue = (newVals) => {
-        this.store = {
-            ...this.store,
-            ...newVals,
+    // 透传 Ref
+    useImperativeHandle(ref, () => {
+        return {
+            submit: formInstance.submit,
+            reset: formInstance.reset,
+            validate: formInstance.reset
         };
-    };
+    }, []);
 
-    getFieldsValue = () => {
-        return this.store;
-    };
-}
-
-// 保证 实例 只创建一次
-export const useForm = (form) => {
-    const formInstance = useRef();
-    if (!formInstance.current) {
-        if (form) {
-            formInstance.current = form;
-        } else {
-            formInstance.current = new formStore();
-        }
-    }
-    return formInstance.current;
-};
-
-//定义表单组件
-
-const Form = (props) => {
-    const { children, onSubmit } = props;
-    const value = useForm();
-    const formSubmit = (e) => {
-        console.log(e);
+    // 提交
+    const onSubmit = (e) => {
         e.preventDefault();
-        onSubmit(value.store);
+        formSubmit && formSubmit(formInstance.submit());
     };
-    console.log('Form==', value);
-    return <form onSubmit={formSubmit}>
-        <FieldContext.Provider value={value}>{children}</FieldContext.Provider>
-    </form>
-}
 
-//每一个组件
-Form.Item = (props) => {
-    const { children, name, validate } = props;
-    const { store, getFieldValue, setFieldValue } = useContext(FieldContext);
-    console.log('Form.Item', store, children);
+    // 重置
+    const onReset = (e) => {
+        e.preventDefault();
+        formInstance.reset();
+    };
 
-    const getControlled = () => {
+    return (
+        <form {...{ onSubmit, onReset }}>
+            <FieldContext.Provider value={formInstance}>{children}</FieldContext.Provider>
+        </form>
+    );
+});
+
+export class FormItem extends PureComponent {
+    static contextType = FieldContext;
+    componentDidMount() {
+        // 注册 当前组件到 store
+        const { registerEneity } = this.context;
+        // 组件卸载，删除实例
+        this.cancelRegister = registerEneity(this);
+    }
+    componentWillUnmount() {
+        // 移除
+        this.cancelRegister();
+    }
+    filedFourceUpdate() {
+        this.forceUpdate();
+    }
+
+    getControled = () => {
+        const { getFieldValue, setFieldsValue, getFieldsValue } = this.context;
+        const { name, onChange: propChange } = this.props;
+
         return {
             value: getFieldValue(name),
             onChange: (e) => {
                 const value = e?.target ? e?.target.value : e;
-                console.log(name + '-> onChange = ', value);
-                setFieldValue({ [name]: value });
+                setFieldsValue({ [name]: value });
+                // 方便监听到控件值得变化
+                propChange && propChange(value);
             }
-        }
+        };
+    };
+
+    render() {
+        const { children } = this.props;
+        // 想 表单 控件，增加 value , onChange 属性
+        return <>{cloneElement(children, this.getControled())}</>;
     }
-    return <>{React.cloneElement(children, getControlled())}</>
 }
 
-export default Form;
+Form.Item = FormItem;
+
+Form.useForm = useForm;
+
+export default Form
