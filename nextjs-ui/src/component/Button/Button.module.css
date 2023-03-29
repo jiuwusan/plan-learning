@@ -9,3 +9,14 @@
 .primary {
     background: #1677ff;
 }
+
+.danger {
+    border: 1px solid #ff4d4f;
+    background-color: #ff4d4f;
+}
+
+.ghost {
+    background: transparent;
+    border: 1px solid #d9d9d9;
+    color: rgba(0, 0, 0, .88);
+}

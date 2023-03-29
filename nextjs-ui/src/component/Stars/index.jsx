@@ -1,4 +1,4 @@
-import { memo, useRef, useEffect, useState } from 'react'
+import { useMemo, useEffect, useState } from 'react'
 import styles from './stars.module.css'
 import Checked from './icon/checked.svg'
 import Unchecked from './icon/unchecked.svg'
@@ -6,29 +6,31 @@ import Image from 'next/image'
 
 const Stars = (props) => {
     const { value: val, full = 5, onChange } = props;
-    const [value, setValue] = useState(1);
-    console.log('Stars---',value,val);
-    
+    const [value, setValue] = useState(0);
+
     useEffect(() => {
+        console.log('useEffect', value, val, value !== val);
         if (value !== val) {
             //默认为 0
-            setValue(val || 1);
+            setValue(val || 0);
         }
     }, [val])
 
-    useEffect(() => {
-        if (value !== val) {
-            onChange && onChange(value);
+    // 定义点击事件
+    const handleClick = (event) => {
+        let { value: v } = event.target.dataset;
+        if (v) {
+            v = parseInt(v);
+            onChange && onChange(v);
+            (!onChange) && setValue(v);
         }
-    }, [value])
+    }
 
-    return <div>
-        {new Array(full).fill('').map((_, i) => {
-            if (i + 1 <= value) return <Image src={Checked} alt="" key={i} className={styles.starsItem} onClick={() => setValue(i + 1)} />
-            else return <Image src={Unchecked} alt="" className={styles.starsItem} key={i} onClick={() => setValue(i + 1)} />
-        })}
+    console.log('Stars-渲染-', props)
+    return <div onClick={handleClick}>
+        {new Array(full).fill('').map((_, i) => <Image data-value={i + 1} src={i + 1 <= value ? Checked : Unchecked} alt="" key={i} className={styles.starsItem} />)}
     </div>
 }
 
-export default memo(Stars)
+export default Stars
 

@@ -1,0 +1,47 @@
+.questionBox {
+    width: 900px;
+    height: 100%;
+    margin: 0 auto;
+}
+
+.question-push {
+    padding: 50px;
+}
+
+.formRow {
+    display: flex;
+    width: 100%;
+    justify-content: center;
+}
+
+.formItem {
+    display: flex;
+    align-items: center;
+    width: 50%;
+    padding: 20px;
+}
+
+.formItemColumn {
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.formItemLabel {
+    margin-right: 8px;
+    font-size: 14px;
+    font-size: 16px;
+}
+
+.formItemColumnCon {
+    margin-top: 8px;
+}
+
+.formButton{
+    width: 25%;
+    height: 30px;
+    margin: 20px;
+}
+
+.formButton:first-child{
+    
+}
