@@ -62,9 +62,18 @@ class formStore {
 
     reset = () => {
         let newVals = {};
-        Object.keys(this.store).forEach((name) => {
-            newVals[name] = null;
-        })
+
+        // 重置 方式一
+        this.entities.forEach((entity) => {
+            const { name, defaultValue } = entity.props;
+            newVals[name] = defaultValue || null;
+        });
+
+        // 方式二
+        // Object.keys(this.store).forEach((name) => {
+        //     newVals[name] = null;
+        // })
+
         this.setFieldsValue(newVals);
     };
 

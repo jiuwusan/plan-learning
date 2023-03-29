@@ -1,0 +1,11 @@
+.button {
+    border-radius: 4px;
+    padding: 4px 15px;
+    border: none;
+    color: #FFFFFF;
+    cursor: pointer;
+}
+
+.primary {
+    background: #1677ff;
+}

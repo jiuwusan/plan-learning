@@ -3,28 +3,21 @@ import { Form, Stars, Button, Input } from '@/component'
 import styles from './push.module.css'
 
 const Page = (props) => {
-    const form = useRef();
 
-    // const submit = (value) => {
-    //     console.log('提交表单==', value);
-    // }
-
-    const submit = () => {
-        // form.current.setFieldsValue({ title: '您好', grade: 2 })
-        console.log('提交表单==', form.current);
+    const submit = (value) => {
+        console.log('提交表单==', value);
     }
 
     return <div className={styles.questionBox}>
-        <Form ref={form} onSubmit={submit}>
+        <Form onSubmit={submit}>
             <Form.Item name='title'>
-                <Input type="text"  />
+                <Input type="text" de />
             </Form.Item>
-            <Form.Item name='grade'>
+            <Form.Item name='grade' defaultValue={1}>
                 <Stars />
             </Form.Item>
-            {/* <button type='submit'>提交</button> */}
-            <Button onClick={submit}>提交</Button>
-            <button type='reset'>重置</button>
+            <Button htmlType='submit'>提交</Button>
+            <Button htmlType='reset'>重置</Button>
         </Form>
     </div>
 }
