@@ -1,11 +1,17 @@
 import { useRef } from 'react'
-import { Form, Stars, Button, Input, MDEditor } from '@/component'
+import { Form, Stars, Button, Input, MDEditor, Select } from '@/component'
 import classNames from 'classnames'
 import styles from './Question.module.css'
+import API from '@/api'
+
+const { questionApi } = API
+
+console.log('questionApi==', questionApi);
 
 const InputCon = Form.genItem(Input);
 const StarsCon = Form.genItem(Stars);
 const MDEditorCon = Form.genItem(MDEditor);
+const SelectCon = Form.genItem(Select);
 
 const FormItem = (props) => {
     const { label, column, children } = props;
@@ -15,32 +21,64 @@ const FormItem = (props) => {
     </div>
 }
 
+const typeOptions = [
+    { label: 'HTML5/CSS', value: 'HTML5/CSS' },
+    { label: 'JavaScript', value: 'JavaScript' },
+    { label: 'WebAPI', value: 'WebAPI' },
+    { label: 'React', value: 'React' },
+    { label: 'Vue', value: 'Vue' },
+    { label: 'Webpack', value: 'Webpack' },
+    { label: 'NodeJS', value: 'NodeJS' },
+    { label: 'ES6', value: 'ES6' }
+]
+
+export async function getStaticProps(context) {
+    const result = await questionApi.queryList();
+    console.log('接口请求--', result);
+    return {
+        props: {
+
+        }, // will be passed to the page component as props
+    }
+}
+
 const Page = (props) => {
 
-    const submit1 = (value) => {
+    const submit = (value) => {
         console.log('提交表单1==', value);
+
+        submitData();
     }
 
-    const submit2 = (value) => {
-        console.log('提交表单2==', value);
+    const submitData = async () => {
+        const res = await fetch('/apiv1/question/saveOrUpdate', {
+            method: 'post',
+            body: JSON.stringify({}),
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        const result = await res.json();
+
+        console.log('提交成功', result);
     }
 
     return <div className={styles.questionBox}>
-        <Form onSubmit={submit1}>
+        <Form onSubmit={submit}>
             <div className={styles.formRow}>
-                <FormItem label='分类'>
-                    <InputCon name='title' />
+                <FormItem label='Type'>
+                    <SelectCon name='type' options={typeOptions} />
                 </FormItem>
-                <FormItem label='难度' >
+                <FormItem label='Weight' >
                     <StarsCon name='weight' />
                 </FormItem>
             </div>
             <div className={styles.formRow}>
-                <FormItem column label='问题描述'>
+                <FormItem column label='Stem'>
                     <MDEditorCon name='stem' />
                 </FormItem>
-                <FormItem column label='答案'>
-                    <MDEditorCon />
+                <FormItem column label='Answer'>
+                    <MDEditorCon name='answer' />
                 </FormItem>
             </div>
             <div className={styles.formRow}>
