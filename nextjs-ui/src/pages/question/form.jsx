@@ -33,17 +33,18 @@ const typeOptions = [
 ]
 
 export async function getStaticProps(context) {
-    const result = await questionApi.queryList();
-    console.log('接口请求--', result);
+    const datalist = await questionApi.queryList();
+    console.log('接口请求--', datalist);
     return {
         props: {
-
-        }, // will be passed to the page component as props
+            datalist
+        }
     }
 }
 
 const Page = (props) => {
-
+    const { datalist=[] } = props;
+    console.log('From 渲染', datalist);
     const submit = (value) => {
         console.log('提交表单1==', value);
 
@@ -64,6 +65,7 @@ const Page = (props) => {
     }
 
     return <div className={styles.questionBox}>
+        {JSON.stringify(datalist)}
         <Form onSubmit={submit}>
             <div className={styles.formRow}>
                 <FormItem label='Type'>

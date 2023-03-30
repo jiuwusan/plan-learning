@@ -1,11 +1,14 @@
 import ApiGenerator from './ApiGenerator'
 
-const { genApi } = new ApiGenerator('/apiv1', (config) => config, (res) => res);
+const { genApi } = new ApiGenerator('http://localhost:8090', (config) => config, (res) => {
+    if (res.data.code !== 0) throw new Error(res.data.msg)
+    return res.data.data
+});
 
 /**
  * Api 字典
  */
-const questionApi = {
+const questionApi = genApi({
     // 获取列表
     queryList: '/question/queryList',
     // 保存
@@ -16,8 +19,11 @@ const questionApi = {
         method: 'POST',
         url: '/question/exam'
     }
+})
+
+const API ={
+    questionApi
 }
 
-export default {
-    questionApi: genApi(questionApi)
-}
+
+export default API
