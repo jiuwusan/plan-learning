@@ -1,5 +1,3 @@
-import axios from 'axios'
-
 /**
  * Api 构造器
  */
@@ -11,13 +9,21 @@ export default class ApiGenerator {
      * @param {*} transformRequest 修改请求数据 (config)=>{}
      * @param {*} transformResponse 修改响应数据 (res)=>{}
      */
-    constructor(baseURL, transformRequest, transformResponse) {
-        this.instance = axios.create({
-            baseURL,
-            timeout: 1000
-        });
-        this.instance.interceptors.request.use(transformRequest);
-        this.instance.interceptors.response.use(transformResponse);
+    constructor(instance, baseURL, transformRequest, transformResponse) {
+
+        if (typeof instance === 'string') {
+            // 参数前置
+            transformResponse = transformRequest;
+            transformRequest = baseURL;
+            baseURL = instance
+        }
+
+        this.baseURL = baseURL;
+        this.instance = instance;
+        this.transformRequest = transformRequest;
+        this.transformResponse = transformResponse;
+        // 请求锁
+        this.apiLock = {};
     }
 
     /**
@@ -46,23 +52,58 @@ export default class ApiGenerator {
 
         if (!option)
             throw new Error(`${api} --> 参数异常`)
-        
+
         option.method = option.method.toLowerCase();
 
         return (data = {}, params = {}) => {
 
-            if (option.method === 'get') {
-                params = data;
-                data = {};
+            let config = { ...option, data, params };
+
+            if (config.method === 'get') {
+                config.params = data;
+                config.data = {};
             }
 
-            params = params || {};
+            // 替换 :params
+            let matchArr = config.url.match(/:[^/?]+/g);
+            console.log('matchArr==', matchArr);
+            // 拼接
+            if (!/^http.*/.test(config.url)) config.url = this.baseURL + config.url;
+            // 防止 出现 ^// 
+            if (!/^\/\/.*/.test(config.url)) config.url = config.url.replace(/\/\//, '/');
+            this.transformRequest && (config = this.transformRequest(config))
 
-            return this.instance.request({
-                ...option,
-                data,
-                params
-            })
+            let lockKey = JSON.stringify(config);
+            if (this.apiLock[lockKey]) {
+                return Promise.resolve({ code: -98, msg: '操作太频繁 ！！！' });
+            }
+            this.apiLock[lockKey] = true;
+            console.log('lockKey', lockKey)
+            let reTry = 0;
+
+            const request = (opt) => {
+                return new Promise((resolve) => {
+                    this.instance(opt).then((res) => {
+                        this.transformRequest && (res = this.transformRequest(res))
+                        resolve(res);
+                    }).catch(() => {
+                        if (reTry < 3) {
+                            reTry++;
+                            console.log(`${opt.url} 第 ${reTry} 次尝试重连`);
+                            resolve(request(opt));
+                        } else {
+                            let errMsg = { data: { code: -99, msg: '网络异常，请重试' } };
+                            this.transformResponse && (errMsg = this.transformResponse(errMsg))
+                            resolve(errMsg);
+                        }
+                    }).finally(() => {
+                        console.log('释放锁', this.apiLock)
+                        delete this.apiLock[JSON.stringify(opt)]
+                    })
+                })
+            }
+
+            return request(config)
         }
     }
 

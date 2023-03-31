@@ -33,7 +33,8 @@ const typeOptions = [
 ]
 
 export async function getStaticProps(context) {
-    const datalist = await questionApi.queryList();
+    const datalist = await questionApi.queryList({uid:'QWER'});
+    await questionApi.queryList();
     console.log('接口请求--', datalist);
     return {
         props: {

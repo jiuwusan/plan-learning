@@ -1,7 +1,12 @@
 import ApiGenerator from './ApiGenerator'
+import axios from 'axios'
 
-const { genApi } = new ApiGenerator('http://localhost:8090', (config) => config, (res) => {
-    if (res.data.code !== 0) throw new Error(res.data.msg)
+const { genApi } = new ApiGenerator(axios.create({ timeout: 1000 }), 'http://localhost:8090', (config) => {
+    console.log('config-----', config);
+    return config
+}, (res) => {
+    console.log('code-----', res.data.code);
+    // if (res.data.code !== 0) throw new Error(res.data.msg)
     return res.data.data
 });
 
@@ -10,7 +15,7 @@ const { genApi } = new ApiGenerator('http://localhost:8090', (config) => config,
  */
 const questionApi = genApi({
     // 获取列表
-    queryList: '/question/queryList',
+    queryList: '/question/queryList/:uid',
     // 保存
     saveOrUpdate: 'POST /question/saveOrUpdate',
     // 检验
@@ -21,7 +26,7 @@ const questionApi = genApi({
     }
 })
 
-const API ={
+const API = {
     questionApi
 }
 
