@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
@@ -7,7 +8,29 @@
     <title>Promise Demo</title>
     <script type="text/javascript" src="./js/promise.js"></script>
 </head>
+
 <body>
-    
+    <script type="text/javascript">
+        let p = new Promise((resolue, reject) => {
+            setTimeout(() => {
+                resolue('成功')
+                // reject('失败')
+            })
+        })
+
+        p.then((data) => {
+            console.log('then-resulved-', data)
+        }, (error) => {
+            console.log('then-rejected-', error)
+        })
+
+        p.then((data) => {
+            console.log('then-resulved-2-', data)
+        }, (error) => {
+            console.log('then-rejected-2-', error)
+        })
+
+    </script>
 </body>
+
 </html>
