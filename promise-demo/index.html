@@ -13,8 +13,8 @@
     <script type="text/javascript">
         let p = new Promise((resolue, reject) => {
             setTimeout(() => {
-                resolue('成功')
-                // reject('失败')
+                // resolue('成功')
+                reject('失败')
             })
         })
 
@@ -28,6 +28,10 @@
             console.log('then-resulved-2-', data)
         }, (error) => {
             console.log('then-rejected-2-', error)
+        })
+
+        setTimeout(() => {
+            console.log('Promise 结果--', p)
         })
 
     </script>
