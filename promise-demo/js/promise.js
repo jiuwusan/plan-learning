@@ -19,9 +19,12 @@ function Promise(excutor) {
         _this.promiseState = 'fulfilled';
         _this.promiseResult = data;
         // 处理异步
-        _this.callbacks.forEach(item => {
-            item.onResolved && item.onResolved(data);
-        });
+        let T = setTimeout(function () {
+            _this.callbacks.forEach(item => {
+                item.onResolved && item.onResolved(data);
+            });
+            clearTimeout(T)
+        })
     }
 
     // 失败 回调函数
@@ -29,9 +32,12 @@ function Promise(excutor) {
         if (_this.promiseState !== 'pending') return;
         _this.promiseState = 'rejected';
         _this.promiseResult = data;
-        _this.callbacks.forEach(item => {
-            item.onRejected && item.onRejected(data);
-        });
+        let T = setTimeout(function () {
+            _this.callbacks.forEach(item => {
+                item.onRejected && item.onRejected(data);
+            });
+            clearTimeout(T)
+        })
     }
 
     try {
@@ -90,20 +96,7 @@ Promise.prototype.then = function (onResolved, onRejected) {
                 callback(onResolved)
                 break
             case 'rejected': //失败
-                try {
-                    let result = onRejected(_this.promiseResult);
-                    if (result instanceof Promise) {
-                        result.then((v) => {
-                            resolve(v)
-                        }, (r) => {
-                            reject(r)
-                        })
-                    } else {
-                        resolve(result)
-                    }
-                } catch (error) {
-                    reject(error)
-                }
+                callback(onRejected)
                 break
         }
     })
@@ -115,7 +108,7 @@ Promise.prototype.then = function (onResolved, onRejected) {
  * @param {*} onRejected 
  */
 Promise.prototype.catch = function (onRejected) {
-
+    return this.then(null, onRejected)
 }
 
 /**
@@ -194,5 +187,27 @@ Promise.race = function (promiseArray) {
             })
 
         }
+    })
+}
+
+/**
+ * 回调函数异步执行
+ * 
+ * @param {*} promiseArray 
+ */
+Promise.resolveDelay = function (value, delay = 0) {
+    return new Promise((resolve) => {
+        let T = setTimeout(() => {
+            if (value instanceof Promise) {
+                value.then((v) => {
+                    resolve(v)
+                }, (r) => {
+                    reject(r)
+                })
+            } else {
+                resolve(value)
+            }
+            clearTimeout(T);
+        }, delay)
     })
 }
