@@ -3,16 +3,42 @@ const cheerio = require('cheerio')
 const database = require('./database')
 
 const HDFans = ($) => {
-    let torrents = $('.torrents').children('tbody').children('tr')
-    for (let i = 0; i < torrents.length; i++) {
+    let torrents = [];
+    let trs = $('.torrents').children('tbody').children('tr')
+    for (let i = 0; i < trs.length; i++) {
         if (i > 0) {
-            const torrent = $(torrents[i]).children('.rowfollow');
-            let torrentInfo = $(torrent[1]).children('.torrentname').children('tbody').children('tr').children('td')
-            console.log('torrentInfo--',torrentInfo)
+            let torrent = {};
+            const tds = $(trs[i]).children('.rowfollow');
+            let torrentInfo = $(tds[1]).children('.torrentname').children('tbody').children('tr').children('td')
+            // 英文标题
+            torrent.title = $(torrentInfo[0]).children('a').attr('title')
+            // 是否免费
+            torrent.free2x = $(torrentInfo[0]).find('.pro_free2up').length > 0;
+            torrent.free = $(torrentInfo[0]).find('.pro_free').length > 0
+            if (torrent.free) {
+                // 免费剩余时间
+                torrent.expires = $(torrentInfo[0]).find('.pro_free').next().children('span').attr('title')
+            }
+            // label
+            torrent.label = []
+            $(torrentInfo[0]).find('br').nextAll('span').each((i, elem) => {
+                torrent.label.push($(elem).text())
+            })
+            // 中文名称
+            let lastText = $(torrentInfo[0]).children().last().text()
+            torrent.chinese = $(torrentInfo[0]).text();
+            torrent.chinese = torrent.chinese.substring(torrent.chinese.indexOf(lastText) + lastText.length)
+            // 下载链接
+            torrent.download = $(torrentInfo[2]).children('a').attr('href')
+            // 来源
+            torrent.source = 'HDFans'
+            // id
+            torrent.uid = torrent.download.split('?id=')[1]
+            torrents.push(torrent);
         }
     }
 
-    return []
+    return torrents
 }
 
 const processing = {
