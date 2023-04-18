@@ -1,8 +1,79 @@
 const axios = require('axios')
 const cheerio = require('cheerio')
 const database = require('./database')
+const ocrApi = require('./ocr')
+const querystring = require("querystring");
+const request = require('request')
 
-const HDFans = ($) => {
+/**
+ * 获取链接参数
+ * @param {*} url 
+ * @param {*} params 
+ * @returns 
+ */
+function queryUrlParams(url, params) {
+    var res = new RegExp("(?:&|/?)" + params + "=([^&$]+)").exec(url);
+    return res ? res[1] : '';
+}
+
+/**
+ * 获取 token
+ */
+const takelogin = (url, form) => {
+    return new Promise((resolve) => {
+        request.post({ url, form }, function (error, response, body) {
+            if (!error) {
+                console.log(response)
+                resolve(response.headers['set-cookie'].toString())
+            }
+        })
+    })
+}
+
+// 用户登录
+const userLogin = async (website) => {
+    website = database.website()[0];
+    const result = await axios({
+        url: `${website.hostname}${website.login}`,
+        headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36'
+        }
+    })
+    const $ = await cheerio.load(result.data);
+    // 取到登录所需参数
+    let codeHost = $($('form').get(1)).find('img').attr('src')
+    let imagestring = ''
+    let imagehash = ''
+    let secret = ''
+
+    if (codeHost) {
+        imagestring = await ocrApi.ocrImageCode(`${website.hostname}${codeHost}`);
+        imagehash = queryUrlParams(codeHost, 'imagehash')
+        secret = queryUrlParams(codeHost, 'secret')
+    }
+
+    let formData = {
+        username: website.username,
+        password: website.password,
+        two_step_code: website.twoStepCode,
+        imagestring,
+        imagehash,
+        secret
+    }
+
+    let cookie = await takelogin(`${website.hostname}${website.takelogin}`, formData);
+
+    return cookie
+}
+
+
+/**
+ * 红豆站
+ * 
+ * @param {*} $ 
+ * @returns 
+ */
+const HDFans = async ($) => {
     let torrents = [];
     let trs = $('.torrents').children('tbody').children('tr')
     for (let i = 0; i < trs.length; i++) {
@@ -10,8 +81,11 @@ const HDFans = ($) => {
             let torrent = {};
             const tds = $(trs[i]).children('.rowfollow');
             let torrentInfo = $(tds[1]).children('.torrentname').children('tbody').children('tr').children('td')
+            torrent.mediaType = $(tds[0]).children('a').children('img').attr('title')
             // 英文标题
             torrent.title = $(torrentInfo[0]).children('a').attr('title')
+            // 详细路径
+            torrent.details = '/' + $(torrentInfo[0]).children('a').attr('href')
             // 是否免费
             torrent.free2x = $(torrentInfo[0]).find('.pro_free2up').length > 0;
             torrent.free = $(torrentInfo[0]).find('.pro_free').length > 0
@@ -33,7 +107,57 @@ const HDFans = ($) => {
             // 来源
             torrent.source = 'HDFans'
             // id
-            torrent.uid = torrent.download.split('?id=')[1]
+            torrent.uid = queryUrlParams(torrent.details, 'id')
+            torrents.push(torrent);
+        }
+    }
+
+    return torrents
+}
+
+/**
+ * PTTime
+ * 
+ * @param {*} $ 
+ * @returns 
+ */
+const PTTime = async ($) => {
+    let torrents = [];
+    let trs = $('.torrents').children('tbody').children('tr')
+    for (let i = 0; i < trs.length; i++) {
+        if (i > 0) {
+            let torrent = {};
+            const tds = $(trs[i]).children('.rowfollow');
+            // 类别
+            torrent.mediaType = $(tds[0]).children('a').children('img').attr('title')
+            // 相关信息
+            let torrentInfo = $(tds[1]).children('.torrentname').children('tbody').children('tr').children('.embedded')
+            // 海报
+            torrent.poster = $(tds[1]).children('.torrentname').children('tbody').children('tr').children('.torrentimg').children('img').attr('src')
+            // 英文标题
+            torrent.title = $(torrentInfo[0]).children('a').attr('title')
+            // 详细路径
+            torrent.details = $(torrentInfo[0]).children('a').attr('href')
+            // 是否免费
+            // torrent.free2x = $(torrentInfo[0]).find('.pro_free2up').length > 0;
+            torrent.free = $(torrentInfo[0]).find('.promotion .free').length > 0
+            if (torrent.free) {
+                // 免费剩余时间
+                torrent.expires = $(torrentInfo[0]).find('.promotion .free').next().attr('title')
+            }
+            // label
+            torrent.label = []
+            $(torrentInfo[0]).find('.dib .cp').children('span').each((i, elem) => {
+                torrent.label.push($(elem).text())
+            })
+            // 中文名称
+            torrent.chinese = $(torrentInfo[0]).children().last().text()
+            // 下载链接
+            torrent.download = $(torrentInfo[1]).children('table').children('tbody').children('tr').children('td').last().children('a').first().attr('href')
+            // 来源
+            torrent.source = 'PTTime'
+            // id
+            torrent.uid = queryUrlParams(torrent.details, 'id')
             torrents.push(torrent);
         }
     }
@@ -42,24 +166,24 @@ const HDFans = ($) => {
 }
 
 const processing = {
-    HDFans
+    HDFans,
+    PTTime
 }
 
-const queryTorrents = async () => {
+const queryTorrents = async (search = '') => {
     let websites = database.website();
     let torrents = [];
-    for (const name in websites) {
-        if (Object.hasOwnProperty.call(websites, name)) {
-            const item = websites[name];
-            const result = await axios.get('https://hdfans.org/torrents.php', {
-                headers: {
-                    'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/99.0.4844.51 Safari/537.36 Edg/99.0.1150.36',
-                    'cookie': item.cookie
-                }
-            })
-            const $ = await cheerio.load(result.data);
-            torrents.push.apply(torrents, processing[name]($));
-        }
+    for (let i = 0; i < websites.length; i++) {
+        const item = websites[i];
+        const result = await axios.get(`${item.hostname}${item.torrents}?search=${search}`, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36',
+                'cookie': item.cookie
+            }
+        })
+        console.log(result)
+        const $ = await cheerio.load(result.data);
+        torrents.push.apply(torrents, await processing[item.name]($));
     }
 
     return torrents
@@ -73,5 +197,6 @@ const polling = () => {
 
 module.exports = {
     polling,
-    queryTorrents
+    queryTorrents,
+    userLogin
 }

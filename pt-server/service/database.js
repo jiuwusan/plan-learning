@@ -26,7 +26,7 @@ const database = () => {
  * @returns 
  */
 const website = () => {
-    return database().website || {}
+    return database().website || []
 }
 
 module.exports = {
