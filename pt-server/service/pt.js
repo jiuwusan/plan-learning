@@ -181,7 +181,8 @@ const queryTorrents = async (search = '') => {
     let torrents = [];
     for (let i = 0; i < websites.length; i++) {
         const item = websites[i];
-        const result = await request.browser(`${item.hostname}${item.torrents}?search=${search}`, item.cookie)
+        // 关键词编码
+        const result = await request.browser(`${item.hostname}${item.torrents}?search=${encodeURIComponent(search)}`, item.cookie)
         console.log(result)
         const $ = await cheerio.load(result.data);
         torrents.push.apply(torrents, await processing[item.name]($));
