@@ -2,8 +2,7 @@ const axios = require('axios')
 const cheerio = require('cheerio')
 const database = require('./database')
 const ocrApi = require('./ocr')
-const querystring = require("querystring");
-const request = require('request')
+const request = require('./request')
 
 /**
  * 获取链接参数
@@ -19,27 +18,18 @@ function queryUrlParams(url, params) {
 /**
  * 获取 token
  */
-const takelogin = (url, form) => {
-    return new Promise((resolve) => {
-        request.post({ url, form }, function (error, response, body) {
-            if (!error) {
-                console.log(response)
-                resolve(response.headers['set-cookie'].toString())
-            }
-        })
-    })
+const takeLogin = async (url, form) => {
+    let response = await request.noFormat({ url, form, method: 'POST' })
+    let { body } = response
+    if (body.indexOf('登录') > -1 && body.indexOf('注册') > -1 && body.indexOf('图片代码无效') > -1)
+        return ''
+    return response.headers['set-cookie'].toString()
 }
 
 // 用户登录
-const userLogin = async (website) => {
-    website = database.website()[0];
-    const result = await axios({
-        url: `${website.hostname}${website.login}`,
-        headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36'
-        }
-    })
-    const $ = await cheerio.load(result.data);
+const postLogin = async (website) => {
+    const res = await request.browser(`${website.hostname}${website.login}`)
+    const $ = await cheerio.load(res.data);
     // 取到登录所需参数
     let codeHost = $($('form').get(1)).find('img').attr('src')
     let imagestring = ''
@@ -60,12 +50,22 @@ const userLogin = async (website) => {
         imagehash,
         secret
     }
+    await request.sleep(3000);
 
-    let cookie = await takelogin(`${website.hostname}${website.takelogin}`, formData);
-
-    return cookie
+    return await takeLogin(`${website.hostname}${website.takelogin}`, formData);
 }
 
+// 用户登录
+const userLogin = async (website) => {
+    let cookie = '';
+    for (let i = 0; i < 3; i++) {
+        cookie = await postLogin(website);
+        if (cookie)
+            break;
+        await request.sleep(3000);
+    }
+    return request.parseCookie(cookie).cookie;
+}
 
 /**
  * 红豆站
@@ -170,17 +170,18 @@ const processing = {
     PTTime
 }
 
+/**
+ * 获取中字列表
+ * 
+ * @param {*} search 
+ * @returns 
+ */
 const queryTorrents = async (search = '') => {
     let websites = database.website();
     let torrents = [];
     for (let i = 0; i < websites.length; i++) {
         const item = websites[i];
-        const result = await axios.get(`${item.hostname}${item.torrents}?search=${search}`, {
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36',
-                'cookie': item.cookie
-            }
-        })
+        const result = await request.browser(`${item.hostname}${item.torrents}?search=${search}`, item.cookie)
         console.log(result)
         const $ = await cheerio.load(result.data);
         torrents.push.apply(torrents, await processing[item.name]($));
