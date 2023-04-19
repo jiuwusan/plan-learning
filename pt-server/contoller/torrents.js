@@ -4,6 +4,7 @@ const ocrApi = require('../service/ocr')
 
 const torrents = async (ctx) => {
     let { search } = ctx.request.query;
+    if (!search) throw new Error('关键词不能为空')
     ctx.body = {
         code: 0,
         msg: '成功',
