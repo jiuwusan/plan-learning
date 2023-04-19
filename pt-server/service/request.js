@@ -5,21 +5,16 @@ const request = require('request')
  * @returns 
  */
 function parseCookie(cookie) {
-    let orgCookie = cookie;
-    cookie = cookie.split('path=/');
-    cookie.pop();
-    let value = {};
-    let cookieStr = [];
-    cookie.forEach((item) => {
-        item = item.replace(/,/g, '').trim().split(';')[0]
-        cookieStr.push(item);
-        item = item.split('=')
-        value[item[0]] = item[1]
-    })
+    let pattern = /([^,=;\s]+)=([^;,]+)(?=(;\sexpires))/g
+    let result = cookie.match(pattern)
     return {
-        cookie: cookieStr.join('; '),
-        parseCookie: value,
-        orgCookie
+        cookieStr: result.join('; '),
+        parseCookie: result.reduce((prve, next) => {
+            next = next.split('=')
+            prve[next[0]] = next[1]
+            return prve
+        }, {}),
+        cookie
     };
 }
 
@@ -30,6 +25,7 @@ function parseCookie(cookie) {
  * @returns 
  */
 const browser = (url, cookie = '') => {
+    // console.log('浏览器 -> ',url)
     return new Promise((resolve, reject) => {
         // 发送请求
         request({
@@ -43,6 +39,7 @@ const browser = (url, cookie = '') => {
                 // 新的 cookie
                 let newCookie = response.headers['set-cookie'] || cookie;
                 newCookie = newCookie.toString();
+                console.log('newCookie==',newCookie);
                 resolve({
                     data,
                     cookie: newCookie !== cookie ? newCookie : ''

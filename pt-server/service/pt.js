@@ -1,8 +1,8 @@
-const axios = require('axios')
 const cheerio = require('cheerio')
 const database = require('./database')
 const ocrApi = require('./ocr')
 const request = require('./request')
+const site = require('./site')
 
 /**
  * 获取链接参数
@@ -19,17 +19,28 @@ function queryUrlParams(url, params) {
  * 获取 token
  */
 const takeLogin = async (url, form) => {
-    let response = await request.noFormat({ url, form, method: 'POST' })
+    console.log(`提交 Form 表单`, url, form)
+    const match = (str, keyword) => str.indexOf(keyword) > -1;
+    let response = await request.noFormat({
+        url, form, method: 'POST', headers: {
+            'content-type': 'application/x-www-form-urlencoded',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/111.0.0.0 Safari/537.36'
+        }
+    })
     let { body } = response
-    if (body.indexOf('登录') > -1 && body.indexOf('注册') > -1 && body.indexOf('图片代码无效') > -1)
+    if ((match(body, '登录') && match(body, '注册') && match(body, '图片代码无效')) || match(body, '失败') || match(body, 'name="username"') || match(body, 'login.php')) {
+        console.log('登录失败 -> ', body)
         return ''
+    }
+
     return response.headers['set-cookie'].toString()
 }
 
 // 用户登录
 const postLogin = async (website) => {
-    const res = await request.browser(`${website.hostname}${website.login}`)
-    const $ = await cheerio.load(res.data);
+    const { data, cookie } = await request.browser(`${website.hostname}${website.login}`)
+    console.log()
+    const $ = await cheerio.load(data);
     // 取到登录所需参数
     let codeHost = $($('form').get(1)).find('img').attr('src')
     let imagestring = ''
@@ -48,126 +59,52 @@ const postLogin = async (website) => {
         two_step_code: website.twoStepCode,
         imagestring,
         imagehash,
-        secret
+        secret,
+        returnto: '/torrents.php'
     }
-    await request.sleep(3000);
+    await request.sleep(1000);
 
     return await takeLogin(`${website.hostname}${website.takelogin}`, formData);
 }
 
 // 用户登录
 const userLogin = async (website) => {
-    let cookie = '';
+    console.log(`${website.name} cookie 失效，尝试获取`)
+    let cookie = ''
     for (let i = 0; i < 3; i++) {
         cookie = await postLogin(website);
         if (cookie)
             break;
-        await request.sleep(3000);
+        await request.sleep(1000);
     }
-    return request.parseCookie(cookie).cookie;
+    return request.parseCookie(cookie).cookieStr;
 }
+
 
 /**
- * 红豆站
- * 
- * @param {*} $ 
- * @returns 
+ * 加载 列表
+ * @param {*} website 
+ * @param {*} search 
  */
-const HDFans = async ($) => {
-    let torrents = [];
-    let trs = $('.torrents').children('tbody').children('tr')
-    for (let i = 0; i < trs.length; i++) {
-        if (i > 0) {
-            let torrent = {};
-            const tds = $(trs[i]).children('.rowfollow');
-            let torrentInfo = $(tds[1]).children('.torrentname').children('tbody').children('tr').children('td')
-            torrent.mediaType = $(tds[0]).children('a').children('img').attr('title')
-            // 英文标题
-            torrent.title = $(torrentInfo[0]).children('a').attr('title')
-            // 详细路径
-            torrent.details = '/' + $(torrentInfo[0]).children('a').attr('href')
-            // 是否免费
-            torrent.free2x = $(torrentInfo[0]).find('.pro_free2up').length > 0;
-            torrent.free = $(torrentInfo[0]).find('.pro_free').length > 0
-            if (torrent.free) {
-                // 免费剩余时间
-                torrent.expires = $(torrentInfo[0]).find('.pro_free').next().children('span').attr('title')
-            }
-            // label
-            torrent.label = []
-            $(torrentInfo[0]).find('br').nextAll('span').each((i, elem) => {
-                torrent.label.push($(elem).text())
-            })
-            // 中文名称
-            let lastText = $(torrentInfo[0]).children().last().text()
-            torrent.chinese = $(torrentInfo[0]).text();
-            torrent.chinese = torrent.chinese.substring(torrent.chinese.indexOf(lastText) + lastText.length)
-            // 下载链接
-            torrent.download = $(torrentInfo[2]).children('a').attr('href')
-            // 来源
-            torrent.source = 'HDFans'
-            // id
-            torrent.uid = queryUrlParams(torrent.details, 'id')
-            torrents.push(torrent);
+const loadWebsite = async (website, keyword) => {
+    // 尝试 获取的次数
+    let count = 0
+    const loadweb = async (web, search) => {
+        if (count > 3) return ''
+        count++;
+        const match = (str, keyword) => str.indexOf(keyword) > -1;
+        let { data, cookie } = await request.browser(`${web.hostname}${web.torrents}?search=${encodeURIComponent(search)}`, web.cookie);
+        if (match(data, 'name="username"') && match(data, 'name="password"')) {
+            // 登录失败，重新获取 cookie
+            web = web.setCookie(await userLogin(web));
+            await request.sleep(1000);
+            return await loadweb(web, search)
         }
+        // if (cookie !== web.cookie)
+        //     web.setCookie(cookie);
+        return data
     }
-
-    return torrents
-}
-
-/**
- * PTTime
- * 
- * @param {*} $ 
- * @returns 
- */
-const PTTime = async ($) => {
-    let torrents = [];
-    let trs = $('.torrents').children('tbody').children('tr')
-    for (let i = 0; i < trs.length; i++) {
-        if (i > 0) {
-            let torrent = {};
-            const tds = $(trs[i]).children('.rowfollow');
-            // 类别
-            torrent.mediaType = $(tds[0]).children('a').children('img').attr('title')
-            // 相关信息
-            let torrentInfo = $(tds[1]).children('.torrentname').children('tbody').children('tr').children('.embedded')
-            // 海报
-            torrent.poster = $(tds[1]).children('.torrentname').children('tbody').children('tr').children('.torrentimg').children('img').attr('src')
-            // 英文标题
-            torrent.title = $(torrentInfo[0]).children('a').attr('title')
-            // 详细路径
-            torrent.details = $(torrentInfo[0]).children('a').attr('href')
-            // 是否免费
-            // torrent.free2x = $(torrentInfo[0]).find('.pro_free2up').length > 0;
-            torrent.free = $(torrentInfo[0]).find('.promotion .free').length > 0
-            if (torrent.free) {
-                // 免费剩余时间
-                torrent.expires = $(torrentInfo[0]).find('.promotion .free').next().attr('title')
-            }
-            // label
-            torrent.label = []
-            $(torrentInfo[0]).find('.dib .cp').children('span').each((i, elem) => {
-                torrent.label.push($(elem).text())
-            })
-            // 中文名称
-            torrent.chinese = $(torrentInfo[0]).children().last().text()
-            // 下载链接
-            torrent.download = $(torrentInfo[1]).children('table').children('tbody').children('tr').children('td').last().children('a').first().attr('href')
-            // 来源
-            torrent.source = 'PTTime'
-            // id
-            torrent.uid = queryUrlParams(torrent.details, 'id')
-            torrents.push(torrent);
-        }
-    }
-
-    return torrents
-}
-
-const processing = {
-    HDFans,
-    PTTime
+    return await loadweb(website, keyword)
 }
 
 /**
@@ -182,10 +119,13 @@ const queryTorrents = async (search = '') => {
     for (let i = 0; i < websites.length; i++) {
         const item = websites[i];
         // 关键词编码
-        const result = await request.browser(`${item.hostname}${item.torrents}?search=${encodeURIComponent(search)}`, item.cookie)
-        console.log(result)
-        const $ = await cheerio.load(result.data);
-        torrents.push.apply(torrents, await processing[item.name]($));
+        try {
+            const body = await loadWebsite(item, search)
+            const $ = await cheerio.load(body);
+            torrents.push.apply(torrents, await site[item.name]($));
+        } catch (error) {
+            console.log(error)
+        }
     }
 
     return torrents

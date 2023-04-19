@@ -44,11 +44,13 @@ const accurateBasicUrl = async (url) => {
  */
 const ocrImageCode = async (url) => {
     let rs = await accurateBasicUrl(url);
-    console.log(rs)
-    return rs.words_result.reduce((prve, next) => {
+    let code = rs.words_result.reduce((prve, next) => {
         prve += next.words
         return prve
     }, '')
+    code = (code.match(/[A-z\d]+/g) || []).join('')
+    console.log('ocrImageCode--', code)
+    return code
 }
 
 module.exports = {

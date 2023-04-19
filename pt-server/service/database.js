@@ -22,14 +22,44 @@ const database = () => {
 }
 
 /**
+ * 异步写入
+ * @param {*} database 
+ */
+const update = async (database) => {
+    let databasePath = genPath('/database/data.json');
+    fs.writeFileSync(databasePath, JSON.stringify(database), 'utf8')
+}
+
+/**
+ * 更新 cookie
+ * 
+ * @returns 
+ */
+function setCookie(index, cookie) {
+    let data = database();
+    console.log(data)
+    data.website[index].cookie = cookie
+    update(data)
+}
+
+/**
  * 获取网站列表
  * @returns 
  */
 const website = () => {
-    return database().website || []
+    return (database().website || []).map((item, index) => {
+        item.setCookie = function (cookie) {
+            this.cookie = cookie;
+            setCookie(index, cookie)
+            return this;
+        }
+        return item
+    })
 }
+
 
 module.exports = {
     database,
-    website
+    website,
+    setCookie
 }
