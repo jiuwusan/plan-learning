@@ -1,0 +1,6 @@
+/* 上下左右居中 */
+.centerXY {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}

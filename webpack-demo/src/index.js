@@ -1,7 +1,14 @@
-const { homeApi, shopcarApi, orderApi } = require('./api/home');
+import { homeApi, shopcarApi, orderApi } from './api'
+import './assest/css/common.css'
+import './assest/readme.md'
 
-homeApi.getUserInfo();
+const runTest = () => {
 
-shopcarApi.getShopCarList();
+    homeApi.getUserInfo();
 
-orderApi.getOrderList();
+    shopcarApi.getShopCarList();
+
+    orderApi.getOrderList();
+}
+
+runTest()
